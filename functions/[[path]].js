@@ -1,8 +1,8 @@
 export async function onRequest(context) {
   const incomingUrl = new URL(context.request.url)
 
-  const target = new URL("")
-  target.pathname = incomingUrl.pathname || "https://sage-saw-distributors-brooks.trycloudflare.com"
+  const target = new URL("https://sage-saw-distributors-brooks.trycloudflare.com")
+  target.pathname = incomingUrl.pathname || ""
   target.search = incomingUrl.search
 
   const headers = new Headers(context.request.headers)
