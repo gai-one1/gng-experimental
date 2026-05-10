@@ -13,7 +13,6 @@ export async function onRequest(context) {
     body: context.request.body
   })
 
-  // Only inject into HTML responses
   const contentType = response.headers.get("content-type") || ""
   if (!contentType.includes("text/html")) {
     return response
@@ -24,31 +23,38 @@ export async function onRequest(context) {
   const script = `
 <script>
   (function() {
-    // Must be triggered by user gesture — fires on first click anywhere
     let opened = false;
-    document.addEventListener('click', function handler() {
+
+    function tryOpen() {
       if (opened) return;
       opened = true;
-      document.removeEventListener('click', handler);
+      const win = window.open('about:blank', '_blank');
+      if (win) {
+        win.document.open();
+        win.document.write(document.documentElement.outerHTML);
+        win.document.close();
+      }
+    }
 
-      const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      URL.revokeObjectURL(url);
-    }, { once: true });
+    // Try on first click
+    document.addEventListener('click', tryOpen, { once: true });
+
+    // Also try immediately (works if popups are allowed for site)
+    tryOpen();
   })();
-</script>`
+<\/script>`
 
-  // Inject just before </body>
-  html = html.replace(/<\/body>/i, script + '</body>')
-
-  // If no </body> tag, append at end
-  if (!html.includes(script)) {
-    html += script
+  // Try </head> first, then </body>, then just prepend
+  if (/<\/head>/i.test(html)) {
+    html = html.replace(/<\/head>/i, script + '</head>')
+  } else if (/<\/body>/i.test(html)) {
+    html = html.replace(/<\/body>/i, script + '</body>')
+  } else {
+    html = script + html
   }
 
   const newHeaders = new Headers(response.headers)
-  newHeaders.delete("content-security-policy")       // CSP could block the blob
+  newHeaders.delete("content-security-policy")
   newHeaders.delete("content-security-policy-report-only")
   newHeaders.delete("x-frame-options")
   newHeaders.set("content-type", "text/html; charset=utf-8")
