@@ -1,7 +1,6 @@
 export async function onRequest(context) {
   const incomingUrl = new URL(context.request.url)
 
-  // This is the cloaked tab — serve normally, no redirect
   if (incomingUrl.searchParams.get('_cloak') === '1') {
     const cleanUrl = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
     cleanUrl.pathname = incomingUrl.pathname || ""
@@ -39,10 +38,14 @@ export async function onRequest(context) {
   const script = `
 <script>
   (function() {
-    // Open a new tab pointing to the cloaked version of this page
-    const win = window.open('${cloakUrl}', '_blank');
+    // Open blank tab first — no URL in history yet
+    const win = window.open('', '_blank');
+    if (!win) return;
 
-    // Wipe original tab from history
+    // Use replace() inside new tab so it never adds to history
+    win.location.replace('${cloakUrl}');
+
+    // Wipe original tab
     history.replaceState(null, '', location.href);
     location.replace('about:blank');
   })();
