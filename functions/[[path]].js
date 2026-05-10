@@ -1,7 +1,7 @@
 export async function onRequest(context) {
   const incomingUrl = new URL(context.request.url)
 
-  const target = new URL("https://repair-monroe-prices-thunder.trycloudflare.com")
+  const target = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
   target.pathname = incomingUrl.pathname || ""
   target.search = incomingUrl.search
 
