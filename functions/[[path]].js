@@ -1,18 +1,19 @@
 export async function onRequest(context) {
   const incomingUrl = new URL(context.request.url)
 
-  // Serve clean HTML for the blob fetch (no script injection)
-  if (incomingUrl.searchParams.get('_src') === '1') {
+  // This is the cloaked tab — serve normally, no redirect
+  if (incomingUrl.searchParams.get('_cloak') === '1') {
     const cleanUrl = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
     cleanUrl.pathname = incomingUrl.pathname || ""
+    cleanUrl.search = incomingUrl.search
+    cleanUrl.searchParams.delete('_cloak')
     const headers = new Headers(context.request.headers)
     headers.set("host", "6c642c4f7a9fbc4c1939eccc19418e91.loophole.site")
-    const res = await fetch(cleanUrl.toString(), {
+    return fetch(cleanUrl.toString(), {
       method: context.request.method,
       headers,
       body: context.request.body
     })
-    return res
   }
 
   const target = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
@@ -33,29 +34,17 @@ export async function onRequest(context) {
 
   let html = await response.text()
 
-  const cleanUrl = incomingUrl.origin + incomingUrl.pathname + '?_src=1'
+  const cloakUrl = incomingUrl.origin + incomingUrl.pathname + '?_cloak=1'
 
   const script = `
 <script>
   (function() {
-    // Fetch a clean copy of the page (no injected script)
-    fetch('${cleanUrl}')
-      .then(r => r.text())
-      .then(pageHtml => {
-        // Create blob from clean HTML
-        const blob = new Blob([pageHtml], { type: 'text/html' });
-        const blobUrl = URL.createObjectURL(blob);
+    // Open a new tab pointing to the cloaked version of this page
+    const win = window.open('${cloakUrl}', '_blank');
 
-        // Open blob in new tab
-        window.open(blobUrl, '_blank');
-
-        // Revoke after short delay so blob URL dies
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
-
-        // Wipe original tab from history and navigate away
-        history.replaceState(null, '', location.href);
-        location.replace('about:blank');
-      });
+    // Wipe original tab from history
+    history.replaceState(null, '', location.href);
+    location.replace('about:blank');
   })();
 <\/script>`
 
