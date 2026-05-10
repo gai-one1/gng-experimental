@@ -22,47 +22,14 @@ export async function onRequest(context) {
 
   const script = `
 <script>
-  (function() {
-    // Don't run if we're already the opened copy
-    if (window.__blobCopy || window.location.protocol === 'blob:' || window.location.href === 'about:blank') return;
-
-    let opened = false;
-
-    function tryOpen() {
-      if (opened) return;
-      opened = true;
-
-      const win = window.open('about:blank', '_blank');
-      if (win) {
-        // Mark the clone so it doesn't re-trigger
-        const cloneHtml = document.documentElement.outerHTML.replace(
-          '__BLOB_GUARD__',
-          'true'
-        );
-        win.document.open();
-        win.document.write(cloneHtml);
-        win.document.close();
-      }
-    }
-
-    document.addEventListener('click', tryOpen, { once: true });
-    tryOpen();
-  })();
+  if (!sessionStorage.getItem('_opened')) {
+    sessionStorage.setItem('_opened', '1');
+    window.open('about:blank', '_blank');
+  }
 <\/script>`
 
-  // Inject the guard flag + script
-  const guardedScript = script.replace('let opened = false;', 'let opened = false;\n    window.__blobCopy = false;')
-  
-  // Also embed a detectable marker in the HTML that gets flipped in the clone
-  html = html.replace(/<html/i, '<html data-blob-guard="__BLOB_GUARD__"')
-
-  if (/<\/head>/i.test(html)) {
-    html = html.replace(/<\/head>/i, guardedScript + '</head>')
-  } else if (/<\/body>/i.test(html)) {
-    html = html.replace(/<\/body>/i, guardedScript + '</body>')
-  } else {
-    html = guardedScript + html
-  }
+  html = html.replace(/<\/head>/i, script + '</head>')
+  if (!/<\/head>/i.test(html)) html = script + html
 
   const newHeaders = new Headers(response.headers)
   newHeaders.delete("content-security-policy")
