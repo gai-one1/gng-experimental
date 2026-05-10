@@ -1,15 +1,12 @@
 export async function onRequest(context) {
   const incomingUrl = new URL(context.request.url)
 
-  // If this is the ?_blob=1 request, strip the param and serve normally (no injection)
   if (incomingUrl.searchParams.get('_blob') === '1') {
-    incomingUrl.searchParams.delete('_blob')
-    const target = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
-    target.pathname = incomingUrl.pathname || ""
-    target.search = incomingUrl.search
+    const cleanUrl = new URL("https://experiment-cultures-unexpected-sympathy.trycloudflare.com")
+    cleanUrl.pathname = incomingUrl.pathname || ""
     const headers = new Headers(context.request.headers)
     headers.set("host", "6c642c4f7a9fbc4c1939eccc19418e91.loophole.site")
-    return fetch(target.toString(), {
+    return fetch(cleanUrl.toString(), {
       method: context.request.method,
       headers,
       body: context.request.body
@@ -30,13 +27,10 @@ export async function onRequest(context) {
   })
 
   const contentType = response.headers.get("content-type") || ""
-  if (!contentType.includes("text/html")) {
-    return response
-  }
+  if (!contentType.includes("text/html")) return response
 
   let html = await response.text()
 
-  // The blob URL points to YOUR proxy with ?_blob=1 — so it fetches real HTML but no injection
   const blobPageUrl = incomingUrl.origin + incomingUrl.pathname + '?_blob=1'
 
   const script = `
@@ -47,11 +41,20 @@ export async function onRequest(context) {
 
     fetch('${blobPageUrl}')
       .then(r => r.text())
-      .then(html => {
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      .then(pageHtml => {
+        const blob = new Blob([pageHtml], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Open the real content in a new blob tab
+        const newTab = window.open(blobUrl, '_blank');
+
+        // Replace current tab history with about:blank so the URL disappears
+        history.replaceState(null, '', 'about:blank');
+
+        // Redirect original tab to about:blank
+        window.location.replace('about:blank');
+
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       });
   })();
 <\/script>`
